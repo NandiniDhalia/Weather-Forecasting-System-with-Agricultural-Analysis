@@ -73,10 +73,13 @@ def get_user_by_id(user_id):
         ).fetchone()
         return dict(row) if row else None
 
+IST = timezone(timedelta(hours=5, minutes=30))
+
 def save_search(location,current, user_id):
     """Save a successful weather search."""
     if user_id is None:
         return
+    formatted_time = datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")
     with get_connection() as conn:
         conn.execute("""
             INSERT INTO search_history (user_id, city, country, temperature, humidity, weather_code, searched_at)
@@ -88,7 +91,7 @@ def save_search(location,current, user_id):
             current.get("temperature_2m"),
             current.get("relative_humidity_2m"),
             current.get("weather_code"),
-            datetime.now(timezone.utc).isoformat()
+            formatted_time
         ))
 
 def get_search_history(user_id, limit=50):
@@ -100,7 +103,7 @@ def get_search_history(user_id, limit=50):
             SELECT city, country, temperature, humidity, weather_code, searched_at
             FROM search_history
             WHERE user_id = ?
-            ORDER BY searched_at DESC
+            ORDER BY search_id DESC
             LIMIT ?
         """, (user_id, limit)).fetchall()
         return [dict(row) for row in rows]

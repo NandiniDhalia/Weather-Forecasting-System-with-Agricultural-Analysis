@@ -4,27 +4,85 @@ GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
 WEATHER_URL = "https://api.open-meteo.com/v1/forecast"
 REQUEST_TIMEOUT = 10
 
+INDIAN_STATE_CAPITALS = {
+    "goa": ("Panaji", "Goa"),
+    "kerala": ("Thiruvananthapuram", "Kerala"),
+    "punjab": ("Chandigarh", "Punjab"),
+    "haryana": ("Chandigarh", "Haryana"),
+    "rajasthan": ("Jaipur", "Rajasthan"),
+    "gujarat": ("Gandhinagar", "Gujarat"),
+    "maharashtra": ("Mumbai", "Maharashtra"),
+    "tamil nadu": ("Chennai", "Tamil Nadu"),
+    "karnataka": ("Bengaluru", "Karnataka"),
+    "uttar pradesh": ("Lucknow", "Uttar Pradesh"),
+    "bihar": ("Patna", "Bihar"),
+    "west bengal": ("Kolkata", "West Bengal"),
+    "assam": ("Guwahati", "Assam"),
+    "madhya pradesh": ("Bhopal", "Madhya Pradesh"),
+    "telangana": ("Hyderabad", "Telangana"),
+}
+
+
 def get_location(city):
     if not isinstance(city, str) or not city.strip():
-        raise ValueError("Enter a valid city name.")
+        raise ValueError("Please enter a valid city name.")
+
     clean_city = city.strip()
+    state_entry = INDIAN_STATE_CAPITALS.get(clean_city.casefold())
+    search_query = state_entry[0] if state_entry else clean_city
+
     params = {
-        "name": clean_city,
-        "count": 1,
+        "name": search_query,
+        "count": 10,
         "language": "en",
         "format": "json"
     }
-    response=requests.get(GEOCODING_URL,params=params, timeout=REQUEST_TIMEOUT)
+
+    response = requests.get(GEOCODING_URL, params=params, timeout=REQUEST_TIMEOUT)
     response.raise_for_status()
 
     try:
-        data=response.json()
-    except ValueError as e:
-        raise ValueError("Recieved an invalid response from the location service.") from e
-    results=data.get("results")
+        data = response.json()
+    except ValueError as exc:
+        raise ValueError("Received an invalid response from the location service.") from exc
+
+    results = data.get("results", [])
     if not results:
-        raise ValueError("City not found. Please enter the correct city name.")
-    location = next((item for item in results if item.get("name","").casefold() == clean_city.casefold()), results[0])
+        raise ValueError("City not found. Please enter a valid city name.")
+
+    if state_entry:
+        capital_name, state_name = state_entry
+        location = next(
+            (
+                item for item in results
+                if item.get("country") == "India"
+                and item.get("name", "").casefold() == capital_name.casefold()
+            ),
+            results[0]
+        )
+        return {
+            "name": clean_city.title(),
+            "admin1": state_name,
+            "country": "India",
+            "latitude": location["latitude"],
+            "longitude": location["longitude"],
+            "timezone": location.get("timezone", "auto")
+        }
+
+    # Prefer exact case-insensitive match in India first, then any exact match
+    exact_india = next(
+        (
+            item for item in results
+            if item.get("name", "").casefold() == clean_city.casefold()
+            and item.get("country") == "India"
+        ),
+        None
+    )
+    exact_global = next(
+        (item for item in results if item.get("name", "").casefold() == clean_city.casefold()),
+        None
+    )
+    location = exact_india or exact_global or results[0]
 
     return {
         "name": location["name"],
@@ -35,12 +93,12 @@ def get_location(city):
         "timezone": location.get("timezone", "auto")
     }
 
-def get_weather(city):
 
+def get_weather(city):
     location = get_location(city)
 
-    latitude= location["latitude"]
-    longitude= location["longitude"]
+    latitude = location["latitude"]
+    longitude = location["longitude"]
 
     params = {
         "latitude": latitude,
@@ -78,5 +136,3 @@ def get_weather(city):
         "daily": data["daily"],
         "coordinates": (longitude, latitude)
     }
-
-

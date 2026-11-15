@@ -5,7 +5,7 @@ import extra_streamlit_components as stx
 from datetime import datetime, timedelta
 
 from auth_page import show_auth_page
-from guest_page import view_guest_page
+from web_page import view_page
 from database import initialize_database, get_search_history, clear_search_history
 from agricultural_database import initialize_agr_database
 from auth import create_remember_token, authenticate_remember_token, revoke_token
@@ -23,25 +23,46 @@ initialize_agr_database()
 
 cookies = stx.CookieManager(key="weather_forecasting_system_cookie_manager")
 
-if "user" not in st.session_state:
+# Auto-login from persistent 30-day remember_token on fresh website visits
+# (skipped during the current tab session if the user just clicked Log out)
+if "user" not in st.session_state and not st.session_state.get("manual_logout"):
     remembered_token = cookies.get("remember_token")
     remembered_user = authenticate_remember_token(remembered_token)
     if remembered_user:
         st.session_state["user"] = remembered_user
+        st.rerun()
 
-if (
-    st.session_state.get("user")
-    and st.session_state.pop("remember_requested", False)
-):
-    token = create_remember_token(st.session_state["user"]["user_id"])
-    cookies.set(
-        cookie="remember_token",
-        value=token,
-        key="set_remember_token",
-        expires_at=datetime.now() + timedelta(days=30),
-        path="/",
-        same_site="lax",
-    )
+# Handle Remember Me preference immediately after manual login
+if st.session_state.get("user") and "remember_requested" in st.session_state:
+    remember_requested = st.session_state.pop("remember_requested", False)
+    st.session_state.pop("manual_logout", None)
+
+    if remember_requested:
+        old_token = cookies.get("remember_token")
+        if old_token:
+            revoke_token(old_token)
+        token = create_remember_token(st.session_state["user"]["user_id"])
+        cookies.set(
+            cookie="remember_token",
+            value=token,
+            key="set_remember_token",
+            expires_at=datetime.now() + timedelta(days=30),
+            path="/",
+            same_site="lax",
+        )
+    else:
+        # Logged in without Remember Me: clear any previous remembered cookie
+        old_token = cookies.get("remember_token")
+        if old_token:
+            revoke_token(old_token)
+            st.session_state["clear_remember_cookie"] = True
+
+if st.session_state.pop("clear_remember_cookie", False):
+    if cookies.get("remember_token") is not None:
+        try:
+            cookies.delete("remember_token", key="delete_remember_token")
+        except KeyError:
+            pass
 
 user = st.session_state.get("user")
 
@@ -53,9 +74,7 @@ with st.sidebar:
     if user:
         st.success(f"Logged in: {user['username']}")
         if st.button("Log out", use_container_width=True):
-            token = cookies.get("remember_token")
-            revoke_token(token)
-            cookies.delete("remember_token", key="delete_remember_token")
+            st.session_state["manual_logout"] = True
             st.session_state.pop("user", None)
             st.session_state.pop("weather_result", None)
             st.session_state["show_auth"] = False
@@ -91,7 +110,7 @@ else:
         )
 
     city = st.text_input("Enter city name", placeholder="e.g., New Delhi")
-    view_guest_page(city)
+    view_page(city)
 
     st.divider()
     st.subheader("Personal Search History")
@@ -105,7 +124,7 @@ else:
                 "temperature": "Temperature (°C)",
                 "humidity": "Humidity (%)",
                 "weather_code": "Weather Code",
-                "searched_at": "Search Date & Time (UTC)",
+                "searched_at": "Search Date & Time",
             })
             st.dataframe(history_df, use_container_width=True, hide_index=True)
 

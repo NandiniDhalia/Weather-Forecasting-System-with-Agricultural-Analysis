@@ -365,10 +365,7 @@ def analyse_agriculture(location_data, weather_data, forecast_data=None):
     if not agr_ref:
         return {
             "available": False,
-            "reason": (
-                f"Agricultural reference data is not available for '{city}' in the local database (agr_loc.db). "
-                "Agricultural analysis is limited to supported agriculture-relevant locations."
-            )
+            "reason": (f"Agricultural reference data is not available for '{city}'. Agricultural analysis is limited to supported agriculture-relevant locations.")
         }
 
     raw_temp = weather_data.get("temperature_2m")

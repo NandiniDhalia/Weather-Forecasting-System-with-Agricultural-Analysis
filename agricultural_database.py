@@ -120,6 +120,8 @@ def _seed_reference_data(conn):
         ("Mysuru", "Karnataka", "India", "Southern Plateau & Hills", "Red Sandy Loam", 0.60, 19.0),
         ("Chennai", "Tamil Nadu", "India", "East Coast Plains & Hills", "Coastal Alluvial & Red", 0.60, 26.0),
         ("Coimbatore", "Tamil Nadu", "India", "Southern Plateau & Hills", "Red Loam & Black Soil", 0.62, 16.0),
+        ("Goa", "Goa", "India", "West Coast Plains & Ghat Region", "Lateritic & Coastal Alluvial Soil", 0.64, 45.0),
+        ("Panaji", "Goa", "India", "West Coast Plains & Ghat Region", "Lateritic & Coastal Alluvial Soil", 0.64, 45.0),
     ]
 
     conn.executemany("""
@@ -166,6 +168,8 @@ def _seed_reference_data(conn):
         "Mysuru": ["Rice (Paddy)", "Sugarcane", "Maize", "Groundnut"],
         "Chennai": ["Rice (Paddy)", "Groundnut", "Sugarcane"],
         "Coimbatore": ["Cotton", "Maize", "Jowar (Sorghum)", "Groundnut"],
+        "Goa": ["Rice (Paddy)", "Groundnut", "Sugarcane", "Tomato", "Onion"],
+        "Panaji": ["Rice (Paddy)", "Groundnut", "Sugarcane", "Tomato", "Onion"],
     }
 
     links_to_insert = []
