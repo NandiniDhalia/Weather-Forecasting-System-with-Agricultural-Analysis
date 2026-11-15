@@ -1,10 +1,16 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
+from dotenv import load_dotenv
+import extra_streamlit_components as stx
+from datetime import datetime, timedelta
 
-from weather_api import get_weather
-from weather_processor import (create_temperature_chart, create_rainProb_chart, create_humidity_chart, get_recommendations, get_weather_description)
-from database import (initialize_database, save_search, get_search_history, clear_search_history)
+from auth_page import show_auth_page
+from guest_page import view_guest_page
+from database import initialize_database, get_search_history, clear_search_history
+from agricultural_database import initialize_agr_database
+from auth import create_remember_token, authenticate_remember_token, revoke_token
+
+load_dotenv()
 
 st.set_page_config(
     page_title="Weather Forecasting System with Agricultural Analysis",
@@ -13,139 +19,101 @@ st.set_page_config(
 )
 
 initialize_database()
+initialize_agr_database()
 
-st.title("🌦️ Weather Forecasting System with Agricultural Analysis")
-st.subheader("Welcome, Start searching for weather information!")
+cookies = stx.CookieManager(key="weather_forecasting_system_cookie_manager")
 
+if "user" not in st.session_state:
+    remembered_token = cookies.get("remember_token")
+    remembered_user = authenticate_remember_token(remembered_token)
+    if remembered_user:
+        st.session_state["user"] = remembered_user
 
-st.write("Get current weather conditions and forecast information for your city.")
+if (
+    st.session_state.get("user")
+    and st.session_state.pop("remember_requested", False)
+):
+    token = create_remember_token(st.session_state["user"]["user_id"])
+    cookies.set(
+        cookie="remember_token",
+        value=token,
+        key="set_remember_token",
+        expires_at=datetime.now() + timedelta(days=30),
+        path="/",
+        same_site="lax",
+    )
 
-# Location input
-city=st.text_input("Enter city name",placeholder="e.g., New Delhi")
+user = st.session_state.get("user")
 
-if st.button("Get Weather", type="primary"):
-    if not city.strip():
-        st.warning("Please enter a city name.")
-    elif len(city) < 2 or not any(char.isalpha() for char in city):
-        st.warning("Please enter a valid city name.")
-    else:
-        try:
-            with st.spinner("Fetching weather information...."):
-                result = get_weather(city.strip())
-            location = result["location"]
-            current = result["current"]
-            daily = result["daily"]
+if user and st.session_state.get("show_auth"):
+    st.session_state["show_auth"] = False
 
-            if city.casefold() != location["name"].casefold():
-                st.error(
-                    "City not found. Please enter the correct city name."
-                )
-                st.session_state.pop("weather_result", None)
-
-            else:
-                save_search(location,current)
-
-                st.session_state["weather_result"] = result
-
-        except ValueError as error:
-            st.error(str(error))
-            st.session_state.pop("weather_result",None)
-        except Exception:
-            st.error("Unable to retrieve weather information. /nCheck your internet connection and try again later.")
+with st.sidebar:
+    st.header("Account & Session")
+    if user:
+        st.success(f"Logged in: {user['username']}")
+        if st.button("Log out", use_container_width=True):
+            token = cookies.get("remember_token")
+            revoke_token(token)
+            cookies.delete("remember_token", key="delete_remember_token")
+            st.session_state.pop("user", None)
             st.session_state.pop("weather_result", None)
+            st.session_state["show_auth"] = False
+            st.rerun()
+    else:
+        st.write("Browsing as **Public Visitor**")
+        if st.session_state.get("show_auth"):
+            if st.button("← Back to Weather Dashboard", use_container_width=True):
+                st.session_state["show_auth"] = False
+                st.rerun()
+        else:
+            if st.button("Log in / Create Account", type="primary", use_container_width=True):
+                st.session_state["show_auth"] = True
+                st.rerun()
+        st.caption(
+            "Sign in with a unique username to unlock Advanced Weather charts, "
+            "Agricultural Analysis, and Personal Search History."
+        )
 
-# Current weather and forecast
-if "weather_result" in st.session_state:
-    result = st.session_state["weather_result"]
-    location = result["location"]
-    current = result["current"]
-    daily = result["daily"]
-    hourly = result["hourly"]
-
-    description, icon = get_weather_description(current["weather_code"])
-
-    st.subheader(f"Weather in {location['name']}, {location['country']}")
-
-    st.caption(f"Updated at: {current['time']}")
-
-    st.subheader("Current Weather")
-    st.subheader(f"{icon} {description}")
-    col1, col2, col3, col4 = st.columns(4)
-
-    col1.metric("Temperature", f"{current['temperature_2m']} °C")
-    col2.metric("Feels like", f"{current['apparent_temperature']} °C")
-    col3.metric("Humidity", f"{current['relative_humidity_2m']} %")
-    col4.metric("Wind Speed", f"{current['wind_speed_10m']} km/h")
-
-    col5 , col6 = st.columns(2)
-    col5.metric("Pressure", f"{current['pressure_msl']} hPa")
-    col6.metric("Wind Direction", f"{current['wind_direction_10m']} °")
-
-    st.divider()
-
-    
-    st.subheader("7-Day Forecast")
-    forecast_df = pd.DataFrame({
-        "Date": daily["time"],
-        "Icon": [get_weather_description(int(code))[1] for code in daily["weather_code"]],
-        "Weather Condition": [get_weather_description(int(code))[0] for code in daily["weather_code"]],
-        "Maximum Temperature (°C)": daily["temperature_2m_max"],
-        "Minimum Temperature (°C)": daily["temperature_2m_min"],
-        "Rain Probability (%)": daily["precipitation_probability_max"],
-        "Maximum Wind Speed (km/h)": daily["wind_speed_10m_max"]
-    })
-    st.dataframe(forecast_df, use_container_width=True, hide_index=True, column_config={ "Icon": st.column_config.TextColumn("Weather"), "Weather Condition": st.column_config.TextColumn("Condition"),})
-
-    st.caption("Forecasts are provided by Open-Meteo, not generated by this system.")
-
-    st.divider()
-    st.subheader("Weather-Based Recommendations")
-    recommendations = get_recommendations(current, daily)
-    for rec in recommendations:
-        st.info(rec)
-
-
-    # Visualization section
-    st.divider()
-    st.subheader("Weather Trends")
-
-    st.markdown("#### Temperature Trends")
-    temperature_fig = create_temperature_chart(daily)
-    st.pyplot(temperature_fig)
-    plt.close(temperature_fig)
-
-    st.markdown("#### Precipitation Probability Chart")
-    rainProb_fig=create_rainProb_chart(daily)
-    st.pyplot(rainProb_fig)
-    plt.close(rainProb_fig)
-
-    st.markdown("#### Humidity Trends")
-    humidity_fig = create_humidity_chart(hourly)
-    st.pyplot(humidity_fig)
-    plt.close(humidity_fig)
-
+if not user and st.session_state.get("show_auth"):
+    show_auth_page()
 else:
-    st.info("Enter a city name and click 'Get Weather' to begin")
+    st.title("🌦️ Weather Forecasting System with Agricultural Analysis")
+    if user:
+        st.write(
+            f"Welcome back, **{user['username']}**! You have full access to Basic Weather, "
+            "Advanced Weather trends, Agricultural Analysis, and your Personal Search History."
+        )
+    else:
+        st.write(
+            "Search any city for **Basic Weather** forecasts. Log in or create an account to unlock "
+            "**Advanced Weather**, **Agricultural Analysis**, and **Personal Search History**."
+        )
 
+    city = st.text_input("Enter city name", placeholder="e.g., New Delhi")
+    view_guest_page(city)
 
-# Search history
-st.divider()
-st.subheader("Search History")
-history = get_search_history()
-if history:
-    history_df = pd.DataFrame(history)
-    history_df = history_df.rename(columns={
-        "city": "City",
-        "country": "Country",
-        "temperature": "Temperature (°C)",
-        "humidity": "Humidity (%)",
-        "weather_code": "Weather Code",
-        "searched_at": "Search Date & Time"
-    })
-    st.dataframe(history_df, use_container_width=True, hide_index=True)
-    if st.button("Clear Search History"):
-        clear_search_history()
-        st.success("Search history cleared.")
-        st.rerun()
-else:
-    st.info("No search history available. Search for a city first to see the history.")
+    st.divider()
+    st.subheader("Personal Search History")
+
+    if user:
+        history = get_search_history(user["user_id"])
+        if history:
+            history_df = pd.DataFrame(history).rename(columns={
+                "city": "City",
+                "country": "Country",
+                "temperature": "Temperature (°C)",
+                "humidity": "Humidity (%)",
+                "weather_code": "Weather Code",
+                "searched_at": "Search Date & Time (UTC)",
+            })
+            st.dataframe(history_df, use_container_width=True, hide_index=True)
+
+            if st.button("Clear Search History"):
+                clear_search_history(user["user_id"])
+                st.success("Search history cleared.")
+                st.rerun()
+        else:
+            st.info("No saved searches yet. Search for a valid city above to record it in your personal history.")
+    else:
+        st.info("Log in with your username to save and revisit your personal search history.")
