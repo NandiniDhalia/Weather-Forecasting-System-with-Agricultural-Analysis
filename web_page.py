@@ -229,4 +229,4 @@ def view_page(city):
                     button_key="unlock_agri_btn",
                 )
     else:
-        st.info("Enter a valid city name (e.g., New Delhi, Pune, Ludhiana) and click 'Get Weather' to begin.")
+        st.info("Enter a valid city name and click 'Get Weather' to begin.")
