@@ -201,9 +201,9 @@ def view_page(city):
         hourly = result["hourly"]
 
         tab_basic, tab_advanced, tab_agri = st.tabs([
-            "1. Basic Weather",
-            "2. Advanced Weather",
-            "3. Agricultural Analysis",
+            "Basic Weather",
+            "Advanced Weather",
+            "Agricultural Analysis",
         ])
 
         with tab_basic:
