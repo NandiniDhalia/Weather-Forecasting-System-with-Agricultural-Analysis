@@ -14,16 +14,7 @@ from weather_processor import (
 from agricultural_analysis import analyse_agriculture
 
 
-def render_locked_feature(feature_name, description, button_key):
-    """Display an access-control prompt when an unauthenticated visitor opens a restricted tab."""
-    st.warning(f"🔒 **{feature_name}** is available only to authorised logged-in users.")
-    st.write(description)
-    if st.button("Log in / Create Account", type="primary", key=button_key):
-        st.session_state["show_auth"] = True
-        st.rerun()
-
-
-def render_basic_weather(location, current, daily):
+def _render_basic_weather(location, current, daily):
     """Level 1: Basic Weather current conditions, 7-day forecast, and general guidance."""
     description, icon = get_weather_description(current.get("weather_code"))
 
@@ -63,8 +54,8 @@ def render_basic_weather(location, current, daily):
         st.info(rec)
 
 
-def render_advanced_weather(location, daily, hourly):
-    """Level 2: Advanced Weather extended parameters and visual trend charts (Authorised users)."""
+def _render_advanced_weather(location, daily, hourly):
+    """Level 2: Advanced Weather extended parameters and visual trend charts."""
     st.subheader(f"Advanced Weather Trends — {location['name']}, {location['country']}")
     st.caption("7-day forecast visualisations and daily average atmospheric trends.")
 
@@ -84,8 +75,8 @@ def render_advanced_weather(location, daily, hourly):
     plt.close(humidity_fig)
 
 
-def render_agricultural_analysis(location, current, daily):
-    """Level 3: Agricultural Analysis across all seven indicative indicators (Authorised users)."""
+def _render_agricultural_analysis(location, current, daily):
+    """Level 3: Agricultural Analysis across all seven indicative risk and guidance indicators."""
     st.subheader(f"Agricultural Analysis — {location['name']}, {location['country']}")
 
     agr_result = analyse_agriculture(location, current, daily)
@@ -160,7 +151,7 @@ def render_agricultural_analysis(location, current, daily):
 
 
 def view_page(city):
-    """Render location search, validation, and role-based access across the three functional levels."""
+    """Render location search, validation, and all three functional levels."""
     is_authenticated = bool(st.session_state.get("user"))
 
     if st.button("Get Weather", type="primary"):
@@ -201,32 +192,18 @@ def view_page(city):
         hourly = result["hourly"]
 
         tab_basic, tab_advanced, tab_agri = st.tabs([
-            "Basic Weather",
-            "Advanced Weather",
-            "Agricultural Analysis",
+            "1. Basic Weather",
+            "2. Advanced Weather",
+            "3. Agricultural Analysis",
         ])
 
         with tab_basic:
-            render_basic_weather(location, current, daily)
+            _render_basic_weather(location, current, daily)
 
         with tab_advanced:
-            if is_authenticated:
-                render_advanced_weather(location, daily, hourly)
-            else:
-                render_locked_feature(
-                    "Advanced Weather",
-                    "Sign in with your username to view 7-day temperature charts, precipitation probability graphs, and daily humidity trends.",
-                    button_key="unlock_advanced_btn",
-                )
+            _render_advanced_weather(location, daily, hourly)
 
         with tab_agri:
-            if is_authenticated:
-                render_agricultural_analysis(location, current, daily)
-            else:
-                render_locked_feature(
-                    "Agricultural Analysis",
-                    "Sign in with your username to access indicative heat-stress, frost, drought, and excessive-rainfall risks, irrigation recommendations, crop suitability, and soil-moisture estimates.",
-                    button_key="unlock_agri_btn",
-                )
+            _render_agricultural_analysis(location, current, daily)
     else:
         st.info("Enter a valid city name and click 'Get Weather' to begin.")
