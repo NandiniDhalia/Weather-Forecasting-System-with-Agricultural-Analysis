@@ -23,8 +23,6 @@ initialize_agr_database()
 
 cookies = stx.CookieManager(key="weather_forecasting_system_cookie_manager")
 
-# Auto-login from persistent 30-day remember_token on fresh website visits
-# (skipped during the current tab session if the user just clicked Log out)
 if "user" not in st.session_state and not st.session_state.get("manual_logout"):
     remembered_token = cookies.get("remember_token")
     remembered_user = authenticate_remember_token(remembered_token)
@@ -32,7 +30,6 @@ if "user" not in st.session_state and not st.session_state.get("manual_logout"):
         st.session_state["user"] = remembered_user
         st.rerun()
 
-# Handle Remember Me preference immediately after manual login
 if st.session_state.get("user") and "remember_requested" in st.session_state:
     remember_requested = st.session_state.pop("remember_requested", False)
     st.session_state.pop("manual_logout", None)
@@ -51,7 +48,6 @@ if st.session_state.get("user") and "remember_requested" in st.session_state:
             same_site="lax",
         )
     else:
-        # Logged in without Remember Me: clear any previous remembered cookie
         old_token = cookies.get("remember_token")
         if old_token:
             revoke_token(old_token)
@@ -90,8 +86,7 @@ with st.sidebar:
                 st.session_state["show_auth"] = True
                 st.rerun()
         st.caption(
-            "Sign in with a unique username to unlock Advanced Weather charts, "
-            "Agricultural Analysis, and Personal Search History."
+            "Sign in with a unique username to save and revisit your Personal Search History."
         )
 
 if not user and st.session_state.get("show_auth"):
@@ -100,13 +95,13 @@ else:
     st.title("🌦️ Weather Forecasting System with Agricultural Analysis")
     if user:
         st.write(
-            f"Welcome back, **{user['username']}**! You have full access to Basic Weather, "
+            f"Welcome back, **{user['username']}**! Search any location to view Basic Weather, "
             "Advanced Weather trends, Agricultural Analysis, and your Personal Search History."
         )
     else:
         st.write(
-            "Search any city for **Basic Weather** forecasts. Log in or create an account to unlock "
-            "**Advanced Weather**, **Agricultural Analysis**, and **Personal Search History**."
+            "Explore **Basic Weather**, **Advanced Weather** trends, and **Agricultural Analysis** for any location. "
+            "Log in or create an account to save your **Personal Search History**."
         )
 
     city = st.text_input("Enter city name", placeholder="e.g., New Delhi")
