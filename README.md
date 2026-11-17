@@ -72,7 +72,7 @@ Weather-Forecasting-System/
 
 1. **Clone or download the repository:**
    ```bash
-   git clone <your-repository-url>
+   git clone https://github.com/NandiniDhalia/Weather-Forecasting-System-with-Agricultural-Analysis.git
    cd "Weather Forecasting System with Agricultural Analysis"
    ```
 
