@@ -13,9 +13,7 @@ from weather_processor import (
 )
 from agricultural_analysis import analyse_agriculture
 
-
-def _render_basic_weather(location, current, daily):
-def _render_basic_weather(location, current, daily):
+def render_basic_weather(location, current, daily):
     """Level 1: Basic Weather current conditions, 7-day forecast, and general guidance."""
     description, icon = get_weather_description(current.get("weather_code"))
 
@@ -54,10 +52,7 @@ def _render_basic_weather(location, current, daily):
     for rec in get_recommendations(current, daily):
         st.info(rec)
 
-
-def _render_advanced_weather(location, daily, hourly):
-    """Level 2: Advanced Weather extended parameters and visual trend charts."""
-def _render_advanced_weather(location, daily, hourly):
+def render_advanced_weather(location, daily, hourly):
     """Level 2: Advanced Weather extended parameters and visual trend charts."""
     st.subheader(f"Advanced Weather Trends — {location['name']}, {location['country']}")
     st.caption("7-day forecast visualisations and daily average atmospheric trends.")
@@ -77,10 +72,7 @@ def _render_advanced_weather(location, daily, hourly):
     st.pyplot(humidity_fig)
     plt.close(humidity_fig)
 
-
-def _render_agricultural_analysis(location, current, daily):
-    """Level 3: Agricultural Analysis across all seven indicative risk and guidance indicators."""
-def _render_agricultural_analysis(location, current, daily):
+def render_agricultural_analysis(location, current, daily):
     """Level 3: Agricultural Analysis across all seven indicative risk and guidance indicators."""
     st.subheader(f"Agricultural Analysis — {location['name']}, {location['country']}")
 
@@ -157,7 +149,6 @@ def _render_agricultural_analysis(location, current, daily):
 
 def view_page(city):
     """Render location search, validation, and all three functional levels."""
-    """Render location search, validation, and all three functional levels."""
     is_authenticated = bool(st.session_state.get("user"))
 
     if st.button("Get Weather", type="primary"):
@@ -200,22 +191,16 @@ def view_page(city):
         tab_basic, tab_advanced, tab_agri = st.tabs([
             "Basic Weather",
             "Advanced Weather",
-            "Agricultural Analysis",
-            "Basic Weather",
-            "Advanced Weather",
-            "Agricultural Analysis",
+            "Agricultural Analysis"
         ])
 
         with tab_basic:
-            _render_basic_weather(location, current, daily)
-            _render_basic_weather(location, current, daily)
+            render_basic_weather(location, current, daily)
 
         with tab_advanced:
-            _render_advanced_weather(location, daily, hourly)
-            _render_advanced_weather(location, daily, hourly)
+            render_advanced_weather(location, daily, hourly)
 
         with tab_agri:
-            _render_agricultural_analysis(location, current, daily)
-            _render_agricultural_analysis(location, current, daily)
+            render_agricultural_analysis(location, current, daily)
     else:
         st.info("Enter a valid city name and click 'Get Weather' to begin.")
